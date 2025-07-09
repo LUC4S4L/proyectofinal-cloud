@@ -1,4 +1,4 @@
-org: tu-org
+org: lucasaliaga
 service: api-compras
 
 provider:
@@ -7,7 +7,7 @@ provider:
   memorySize: 1024
   timeout: 30
   iam:
-    role: arn:aws:iam::352677750379:role/LabRole
+    role: arn:aws:iam::214817148898:role/LabRole
   environment:
     TABLE_NAME: ${sls:stage}-t_compras
 
