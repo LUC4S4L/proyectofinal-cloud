@@ -55,13 +55,19 @@ def registrar_compra(event, context):
         
 def listar_compras(event, context):
     try:
-        tenant_id = event['pathParameters']['tenant_id']
-        usuario_id = event['pathParameters']['usuario_id']
+        body = json.loads(event['body'])
 
-        pk = f'{tenant_id}#{usuario_id}'
+        tenant_id = body.get('tenant_id')
+        usuario_id = body.get('usuario_id')
+
+        if not tenant_id or not usuario_id:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'tenant_id y usuario_id son requeridos'})
+            }
 
         response = table.query(
-            KeyConditionExpression=Key('pk').eq(pk)
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
         )
 
         compras = response.get('Items', [])
