@@ -13,7 +13,7 @@ provider:
 
 functions:
   registrarCompra:
-    handler: lambda_registrar.registrar_compra
+    handler: lambda.registrar_compra
     events:
       - http:
           path: /compras/registrar
@@ -21,7 +21,7 @@ functions:
           cors: true
 
   listarCompras:
-    handler: lambda_listar.listar_compras
+    handler: lambda.listar_compras
     events:
       - http:
           path: /compras/{tenant_id}/{usuario_id}
