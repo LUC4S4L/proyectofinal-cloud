@@ -29,14 +29,14 @@ def registrar_compra(event, context):
         fecha_compra = datetime.utcnow().isoformat()
 
         item = {
-            'pk': f'{tenant_id}#{usuario_id}',
-            'sk': compra_id,
+            'tenant_id': tenant_id,
+            'usuario_id': usuario_id,
             'curso_id': curso_id,
             'nombre_curso': nombre_curso,
             'monto_pagado': monto_pagado,
-            'fecha_compra': fecha_compra
+            'fecha_compra': fecha_compra,
+            'compra_id': compra_id
         }
-
         table.put_item(Item=item)
 
         return {
