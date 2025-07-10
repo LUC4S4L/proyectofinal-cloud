@@ -6,7 +6,7 @@ from datetime import datetime
 from boto3.dynamodb.conditions import Key
 
 dynamodb = boto3.resource('dynamodb')
-TABLE_NAME = os.environ['DYNAMODB_TABLE']
+TABLE_NAME = os.environ['TABLE_NAME']
 table = dynamodb.Table(TABLE_NAME)
 
 def listar_compras(event, context):
