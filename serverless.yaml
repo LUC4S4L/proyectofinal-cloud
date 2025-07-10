@@ -35,13 +35,13 @@ resources:
       Properties:
         TableName: ${self:provider.environment.TABLE_NAME}
         AttributeDefinitions:
-          - AttributeName: pk
+          - AttributeName: tenant_id
             AttributeType: S
-          - AttributeName: sk
+          - AttributeName: usuario_id
             AttributeType: S
         KeySchema:
-          - AttributeName: pk
+          - AttributeName: tenant_id
             KeyType: HASH
-          - AttributeName: sk
+          - AttributeName: usuario_id
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
