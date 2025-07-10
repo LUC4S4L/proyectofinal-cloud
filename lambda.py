@@ -4,11 +4,18 @@ import uuid
 import os
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
+from decimal import Decimal
 
 dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = os.environ['TABLE_NAME']
 table = dynamodb.Table(TABLE_NAME)
 
+
+def decimal_default(obj):
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError
+    
 def registrar_compra(event, context):
     try:
         body = json.loads(event['body'])
@@ -74,7 +81,7 @@ def listar_compras(event, context):
 
         return {
             'statusCode': 200,
-            'body': json.dumps({'compras': compras})
+            'body': json.dumps({'compras': compras}, default=decimal_default)
         }
 
     except Exception as e:
