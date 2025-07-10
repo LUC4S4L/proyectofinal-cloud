@@ -21,12 +21,12 @@ functions:
           cors: true
 
   listarCompras:
-    handler: lambda.listar_compras
-    events:
-      - http:
-          path: /compras/{tenant_id}/{usuario_id}
-          method: get
-          cors: true
+  handler: lambda.listar_compras
+  events:
+    - http:
+        path: /compras/listar
+        method: post
+        cors: true
 
 resources:
   Resources:
