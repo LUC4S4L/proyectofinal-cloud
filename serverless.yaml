@@ -27,7 +27,15 @@ functions:
           path: /compras/listar
           method: post
           cors: true
-
+  procesarCambios:
+    handler: lambda.procesar_cambios
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt:
+              - TablaCompras
+              - StreamArn
 resources:
   Resources:
     TablaCompras:
