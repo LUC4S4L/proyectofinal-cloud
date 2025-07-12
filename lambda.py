@@ -89,3 +89,13 @@ def listar_compras(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
+
+def procesar_cambios(event, context):
+    for record in event['Records']:
+        evento = record['eventName']  # INSERT, MODIFY, REMOVE
+        nuevo = record.get('dynamodb', {}).get('NewImage', {})
+        anterior = record.get('dynamodb', {}).get('OldImage', {})
+
+        print(f"Evento: {evento}")
+        print(f"Nuevo valor: {json.dumps(nuevo)}")
+        print(f"Valor anterior: {json.dumps(anterior)}")
