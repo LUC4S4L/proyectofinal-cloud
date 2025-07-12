@@ -1,0 +1,88 @@
+openapi: 3.0.1
+info:
+  title: API de Compras - Clases Virtuales
+  version: 1.0.0
+  description: Microservicio para registrar y listar compras de cursos virtuales por usuario (multi-tenant).
+
+servers:
+  - url: https://4umrzduxy1.execute-api.us-east-1.amazonaws.com/dev
+
+paths:
+  /compras/registrar:
+    post:
+      summary: Registrar una compra de clase virtual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                usuario_id:
+                  type: string
+                curso_id:
+                  type: string
+                nombre_curso:
+                  type: string
+                monto_pagado:
+                  type: number
+              required:
+                - tenant_id
+                - usuario_id
+                - curso_id
+                - nombre_curso
+                - monto_pagado
+      responses:
+        '201':
+          description: Compra registrada exitosamente
+        '400':
+          description: Datos incompletos
+        '500':
+          description: Error interno del servidor
+
+  /compras/listar:
+    post:
+      summary: Listar compras de un usuario por tenant (usando POST)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                usuario_id:
+                  type: string
+              required:
+                - tenant_id
+                - usuario_id
+      responses:
+        '200':
+          description: Lista de compras encontradas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  compras:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        compra_id:
+                          type: string
+                        curso_id:
+                          type: string
+                        nombre_curso:
+                          type: string
+                        monto_pagado:
+                          type: number
+                        fecha_compra:
+                          type: string
+        '400':
+          description: Parámetros faltantes
+        '500':
+          description: Error interno del servidor
