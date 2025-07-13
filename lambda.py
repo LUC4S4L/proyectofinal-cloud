@@ -73,15 +73,18 @@ def listar_compras(event, context):
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
+        # Buscar todas las compras del tenant
         response = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id)
         )
-
         compras = response.get('Items', [])
+
+        # Filtrar solo las compras del usuario logueado
+        compras_usuario = [c for c in compras if c['usuario_id'] == usuario_id]
 
         return {
             'statusCode': 200,
-            'body': json.dumps({'compras': compras}, default=decimal_default)
+            'body': json.dumps({'compras': compras_usuario}, default=decimal_default)
         }
 
     except Exception as e:
