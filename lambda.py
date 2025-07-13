@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from boto3.dynamodb.conditions import Key
 from decimal import Decimal
+from auth_utils import validar_token
 
 dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = os.environ['TABLE_NAME']
@@ -17,13 +18,17 @@ def decimal_default(obj):
 
 def registrar_compra(event, context):
     try:
+        token = event['headers'].get('Authorization')
+        payload = validar_token(token)
+
         body = json.loads(event['body'])
 
-        tenant_id = body['tenant_id']
-        usuario_id = body['usuario_id']
+        tenant_id = payload['tenant_id']
+        usuario_id = payload['username']
+
         curso_id = body['curso_id']
         nombre_curso = body['nombre_curso']
-        monto_pagado = Decimal(str(body['monto_pagado']))
+        monto_pagado = body['monto_pagado']
 
         if not all([tenant_id, usuario_id, curso_id, nombre_curso, monto_pagado]):
             return {
@@ -39,7 +44,7 @@ def registrar_compra(event, context):
             'usuario_id': usuario_id,
             'curso_id': curso_id,
             'nombre_curso': nombre_curso,
-            'monto_pagado': monto_pagado,
+            'monto_pagado': Decimal(str(monto_pagado)),
             'fecha_compra': fecha_compra,
             'compra_id': compra_id
         }
@@ -62,16 +67,11 @@ def registrar_compra(event, context):
 
 def listar_compras(event, context):
     try:
-        body = json.loads(event['body'])
+        token = event['headers'].get('Authorization')
+        payload = validar_token(token)
 
-        tenant_id = body.get('tenant_id')
-        usuario_id = body.get('usuario_id')
-
-        if not tenant_id or not usuario_id:
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'tenant_id y usuario_id son requeridos'})
-            }
+        tenant_id = payload['tenant_id']
+        usuario_id = payload['username']
 
         response = table.query(
             KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
@@ -97,5 +97,5 @@ def procesar_cambios(event, context):
         anterior = record.get('dynamodb', {}).get('OldImage', {})
 
         print(f"Evento: {evento}")
-        print(f"Nuevo valor: {json.dumps(nuevo, indent=2)}")
-        print(f"Valor anterior: {json.dumps(anterior, indent=2)}")
+        print(f"Nuevo valor: {json.dumps(nuevo, default=str)}")
+        print(f"Valor anterior: {json.dumps(anterior, default=str)}")
