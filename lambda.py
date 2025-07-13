@@ -10,12 +10,11 @@ dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = os.environ['TABLE_NAME']
 table = dynamodb.Table(TABLE_NAME)
 
-
 def decimal_default(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError
-    
+
 def registrar_compra(event, context):
     try:
         body = json.loads(event['body'])
@@ -44,6 +43,7 @@ def registrar_compra(event, context):
             'fecha_compra': fecha_compra,
             'compra_id': compra_id
         }
+
         table.put_item(Item=item)
 
         return {
@@ -59,7 +59,7 @@ def registrar_compra(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
-        
+
 def listar_compras(event, context):
     try:
         body = json.loads(event['body'])
@@ -92,7 +92,7 @@ def listar_compras(event, context):
 
 def procesar_cambios(event, context):
     for record in event['Records']:
-        evento = record['eventName']  # INSERT, MODIFY, REMOVE
+        evento = record['eventName']
         nuevo = record.get('dynamodb', {}).get('NewImage', {})
         anterior = record.get('dynamodb', {}).get('OldImage', {})
 
