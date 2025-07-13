@@ -23,7 +23,7 @@ def registrar_compra(event, context):
         usuario_id = body['usuario_id']
         curso_id = body['curso_id']
         nombre_curso = body['nombre_curso']
-        monto_pagado = body['monto_pagado']
+        monto_pagado = Decimal(str(body['monto_pagado']))
 
         if not all([tenant_id, usuario_id, curso_id, nombre_curso, monto_pagado]):
             return {
