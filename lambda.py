@@ -97,5 +97,5 @@ def procesar_cambios(event, context):
         anterior = record.get('dynamodb', {}).get('OldImage', {})
 
         print(f"Evento: {evento}")
-        print(f"Nuevo valor: {json.dumps(nuevo)}")
-        print(f"Valor anterior: {json.dumps(anterior)}")
+        print(f"Nuevo valor: {json.dumps(nuevo, indent=2)}")
+        print(f"Valor anterior: {json.dumps(anterior, indent=2)}")
