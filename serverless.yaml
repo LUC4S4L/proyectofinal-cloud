@@ -27,6 +27,7 @@ functions:
           path: /compras/listar
           method: post
           cors: true
+
   procesarCambios:
     handler: lambda.procesar_cambios
     events:
@@ -36,6 +37,7 @@ functions:
             Fn::GetAtt:
               - TablaCompras
               - StreamArn
+
 resources:
   Resources:
     TablaCompras:
@@ -55,3 +57,8 @@ resources:
         BillingMode: PAY_PER_REQUEST
         StreamSpecification:
           StreamViewType: NEW_AND_OLD_IMAGES
+
+package:
+  include:
+    - lambda.py
+    - auth_utils.py
