@@ -1,19 +1,21 @@
 import requests
 import json
 
-API_USUARIOS_URL = 'https://c0fmkco8rb.execute-api.us-east-1.amazonaws.com/dev'
-
 def validar_token(token):
     if not token:
         raise Exception("Token requerido")
 
-    response = requests.get(f"{API_USUARIOS_URL}/usuario/validar", headers={"Authorization": token})
+    url = "https://c0fmkco8rb.execute-api.us-east-1.amazonaws.com/dev/usuario/validar"
 
-    if response.status_code != 200:
-        raise Exception("Token inválido o expirado")
+    try:
+        response = requests.get(url, headers={"Authorization": token})
 
-    payload = json.loads(response.json().get('body', '{}')).get('payload')
-    if not payload:
-        raise Exception("Token inválido")
+        if response.status_code != 200:
+            raise Exception("Token inválido o expirado")
 
-    return payload  # Contiene tenant_id y username
+        body = response.json()
+        payload = json.loads(body["body"])["payload"]
+        return payload
+
+    except Exception as e:
+        raise Exception(f"Error al validar token: {str(e)}")
