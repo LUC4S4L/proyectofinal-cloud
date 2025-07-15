@@ -47,12 +47,12 @@ resources:
         AttributeDefinitions:
           - AttributeName: tenant_id
             AttributeType: S
-          - AttributeName: compra_id
+          - AttributeName: usuario_id
             AttributeType: S
         KeySchema:
           - AttributeName: tenant_id
             KeyType: HASH
-          - AttributeName: compra_id
+          - AttributeName: usuario_id
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
         StreamSpecification:
@@ -62,3 +62,4 @@ package:
   include:
     - lambda.py
     - auth_utils.py
+    - cursos_utils.py
