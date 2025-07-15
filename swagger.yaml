@@ -1,16 +1,25 @@
 openapi: 3.0.1
 info:
   title: API de Compras - Clases Virtuales
-  version: 1.0.0
-  description: Microservicio para registrar y listar compras de cursos virtuales por usuario (multi-tenant).
+  version: 1.1.0
+  description: >
+    Microservicio para registrar y listar compras de cursos virtuales por usuario (multi-tenant). 
+    Requiere autenticación JWT. Valida que los cursos existan y pertenezcan al tenant correcto.
 
 servers:
-  - url: https://4umrzduxy1.execute-api.us-east-1.amazonaws.com/dev
+  - url: https://tu-api-compras.execute-api.us-east-1.amazonaws.com/dev
 
 paths:
   /compras/registrar:
     post:
-      summary: Registrar una compra de clase virtual
+      summary: Registrar compra de curso
+      description: >
+        Registra una compra únicamente si el curso existe en la API de Cursos 
+        y pertenece al mismo tenant_id del usuario autenticado.
+      tags:
+        - Compras
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -18,47 +27,51 @@ paths:
             schema:
               type: object
               properties:
-                tenant_id:
-                  type: string
-                usuario_id:
-                  type: string
                 curso_id:
                   type: string
-                nombre_curso:
-                  type: string
-                monto_pagado:
-                  type: number
+                  example: "0984aa2e-2c7d-4492-9775-eb546ddd089f"
               required:
-                - tenant_id
-                - usuario_id
                 - curso_id
-                - nombre_curso
-                - monto_pagado
       responses:
         '201':
           description: Compra registrada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Compra registrada exitosamente
+                  compra_id:
+                    type: string
         '400':
-          description: Datos incompletos
+          description: Datos faltantes o inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Curso no válido para el tenant del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /compras/listar:
     post:
-      summary: Listar compras de un usuario por tenant (usando POST)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                tenant_id:
-                  type: string
-                usuario_id:
-                  type: string
-              required:
-                - tenant_id
-                - usuario_id
+      summary: Listar compras de un usuario autenticado
+      description: Retorna todas las compras del usuario autenticado (basado en el token JWT).
+      tags:
+        - Compras
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Lista de compras encontradas
@@ -82,7 +95,30 @@ paths:
                           type: number
                         fecha_compra:
                           type: string
-        '400':
-          description: Parámetros faltantes
+        '401':
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
-          description: Error interno del servidor
+          description: Error interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Mensaje de error
