@@ -22,27 +22,29 @@ def registrar_compra(event, context):
         token = event['headers'].get('Authorization')
         payload = validar_token(token)
 
-        body = json.loads(event['body'])
-
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
-        curso_id = body['curso_id']
-        monto_pagado = body['monto_pagado']
 
-        if not all([tenant_id, usuario_id, curso_id, monto_pagado]):
+        body = json.loads(event['body'])
+        curso_id = body.get('curso_id')
+
+        if not curso_id:
             return {
                 'statusCode': 400,
-                'body': json.dumps({'error': 'Datos incompletos'})
+                'body': json.dumps({'error': 'Falta curso_id'})
             }
 
-        curso = obtener_curso(curso_id)
-        if not curso:
+        # Obtener curso desde API externa
+        curso = obtener_curso(curso_id, token)
+
+        if curso['tenant_id'] != tenant_id:
             return {
-                'statusCode': 404,
-                'body': json.dumps({'error': 'Curso no encontrado'})
+                'statusCode': 403,
+                'body': json.dumps({'error': 'El curso no pertenece a tu universidad'})
             }
 
-        nombre_curso = curso.get('curso_datos', {}).get('nombre', 'Nombre no disponible')
+        nombre_curso = curso['curso_datos']['nombre']
+        monto_pagado = Decimal(str(curso['curso_datos']['precio']))
 
         compra_id = str(uuid.uuid4())
         fecha_compra = datetime.utcnow().isoformat()
@@ -52,7 +54,7 @@ def registrar_compra(event, context):
             'usuario_id': usuario_id,
             'curso_id': curso_id,
             'nombre_curso': nombre_curso,
-            'monto_pagado': Decimal(str(monto_pagado)),
+            'monto_pagado': monto_pagado,
             'fecha_compra': fecha_compra,
             'compra_id': compra_id
         }
@@ -72,6 +74,7 @@ def registrar_compra(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
+
 def listar_compras(event, context):
     try:
         token = event['headers'].get('Authorization')
