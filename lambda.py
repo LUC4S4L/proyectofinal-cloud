@@ -6,6 +6,7 @@ from datetime import datetime
 from boto3.dynamodb.conditions import Key
 from decimal import Decimal
 from auth_utils import validar_token
+from cursos_utils import obtener_datos_curso
 
 dynamodb = boto3.resource('dynamodb')
 TABLE_NAME = os.environ['TABLE_NAME']
@@ -25,7 +26,6 @@ def registrar_compra(event, context):
 
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
-
         curso_id = body['curso_id']
         nombre_curso = body['nombre_curso']
         monto_pagado = body['monto_pagado']
@@ -34,6 +34,21 @@ def registrar_compra(event, context):
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Datos incompletos'})
+            }
+
+        # Obtener y validar curso desde API Cursos
+        curso_data = obtener_datos_curso(curso_id, token)
+
+        if not curso_data:
+            return {
+                'statusCode': 404,
+                'body': json.dumps({'error': 'El curso no existe'})
+            }
+
+        if curso_data['tenant_id'] != tenant_id:
+            return {
+                'statusCode': 403,
+                'body': json.dumps({'error': 'El curso no pertenece a tu institución'})
             }
 
         compra_id = str(uuid.uuid4())
@@ -54,7 +69,7 @@ def registrar_compra(event, context):
         return {
             'statusCode': 201,
             'body': json.dumps({
-                'message': 'Compra de curso registrada exitosamente',
+                'message': 'Compra registrada exitosamente',
                 'compra_id': compra_id
             })
         }
@@ -64,7 +79,6 @@ def registrar_compra(event, context):
             'statusCode': 500,
             'body': json.dumps({'error': str(e)})
         }
-
 def listar_compras(event, context):
     try:
         token = event['headers'].get('Authorization')
