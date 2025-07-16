@@ -1,9 +1,6 @@
 org: lucasaliaga
 service: api-compras
 
-plugins:
-  - serverless-dotenv-plugin
-
 provider:
   name: aws
   runtime: python3.12
@@ -14,7 +11,7 @@ provider:
   environment:
     TABLE_NAME: ${sls:stage}-t_compras
     CURSOS_API_URL: https://vojyv84ne9.execute-api.us-east-1.amazonaws.com/dev
-    JWT_SECRET: ${env:JWT_SECRET}
+    JWT_SECRET: ${env:JWT_SECRET, 'supersecreto123'}
 
 functions:
   registrarCompra:
