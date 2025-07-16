@@ -10,15 +10,8 @@ provider:
     role: arn:aws:iam::214817148898:role/LabRole
   environment:
     TABLE_NAME: ${sls:stage}-t_compras
-    CURSOS_API_URL: https://r9ttk3it54.execute-api.us-east-1.amazonaws.com/dev
+    CURSOS_API_URL: https://vojyv84ne9.execute-api.us-east-1.amazonaws.com/dev
 
-plugins:
-  - serverless-python-requirements
-
-custom:
-  pythonRequirements:
-    dockerizePip: true
-    
 functions:
   registrarCompra:
     handler: lambda.registrar_compra
@@ -26,7 +19,12 @@ functions:
       - http:
           path: /compras/registrar
           method: post
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
 
   listarCompras:
     handler: lambda.listar_compras
@@ -34,7 +32,12 @@ functions:
       - http:
           path: /compras/listar
           method: post
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
 
   procesarCambios:
     handler: lambda.procesar_cambios
@@ -55,12 +58,12 @@ resources:
         AttributeDefinitions:
           - AttributeName: tenant_id
             AttributeType: S
-          - AttributeName: compra_id
+          - AttributeName: usuario_id
             AttributeType: S
         KeySchema:
           - AttributeName: tenant_id
             KeyType: HASH
-          - AttributeName: compra_id
+          - AttributeName: usuario_id
             KeyType: RANGE
         BillingMode: PAY_PER_REQUEST
         StreamSpecification:
@@ -71,3 +74,4 @@ package:
     - lambda.py
     - auth_utils.py
     - cursos_utils.py
+
