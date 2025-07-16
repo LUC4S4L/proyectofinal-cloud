@@ -74,14 +74,15 @@ def registrar_compra(event, context):
         fecha_compra = datetime.utcnow().isoformat()
         nombre_curso = body.get('nombre_curso', 'Curso sin nombre')
 
+        # NUEVA ESTRUCTURA: tenant_id + compra_id como claves primarias
         item = {
             'tenant_id': tenant_id,
-            'usuario_id': usuario_id,
+            'compra_id': compra_id,  # Ahora es sort key
+            'usuario_id': usuario_id,  # Ahora es atributo regular
             'curso_id': curso_id,
             'nombre_curso': nombre_curso,
             'monto_pagado': monto_pagado,
-            'fecha_compra': fecha_compra,
-            'compra_id': compra_id
+            'fecha_compra': fecha_compra
         }
 
         table.put_item(Item=item)
@@ -129,15 +130,17 @@ def listar_compras(event, context):
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
-        # USAR SCAN EN LUGAR DE QUERY (temporal)
-        response = table.scan(
-            FilterExpression=Attr('tenant_id').eq(tenant_id) & Attr('usuario_id').eq(usuario_id)
+        # USAR EL ÍNDICE GSI PARA CONSULTAR POR USUARIO
+        response = table.query(
+            IndexName='UsuarioIndex',
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id),
+            ScanIndexForward=False  # Ordenar por fecha más reciente primero
         )
 
         compras = response.get('Items', [])
         print(f"Compras encontradas: {len(compras)}")
 
-        # Ordenar por fecha (más reciente primero)
+        # Ordenar por fecha_compra (más reciente primero)
         compras_ordenadas = sorted(compras, key=lambda x: x.get('fecha_compra', ''), reverse=True)
 
         return {
@@ -156,7 +159,7 @@ def listar_compras(event, context):
             'headers': cors_headers,
             'body': json.dumps({'error': f'Error interno: {str(e)}'})
         }
-        
+
 def procesar_cambios(event, context):
     try:
         for record in event['Records']:
