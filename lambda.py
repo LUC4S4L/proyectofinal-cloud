@@ -24,14 +24,6 @@ def registrar_compra(event, context):
         'Access-Control-Allow-Methods': 'POST,OPTIONS'
     }
     
-    # Manejar OPTIONS request
-    if event.get('httpMethod') == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': cors_headers,
-            'body': json.dumps({'message': 'OK'})
-        }
-    
     try:
         # Log para debugging
         print(f"Headers recibidos: {event.get('headers', {})}")
@@ -121,14 +113,6 @@ def listar_compras(event, context):
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
         'Access-Control-Allow-Methods': 'POST,OPTIONS'
     }
-    
-    # Manejar OPTIONS request
-    if event.get('httpMethod') == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': cors_headers,
-            'body': json.dumps({'message': 'OK'})
-        }
     
     try:
         print(f"Headers recibidos: {event.get('headers', {})}")
