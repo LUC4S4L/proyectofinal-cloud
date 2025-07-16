@@ -10,7 +10,7 @@ provider:
     role: arn:aws:iam::214817148898:role/LabRole
   environment:
     TABLE_NAME: ${sls:stage}-t_compras
-    CURSOS_API_URL: https://vojyv84ne9.execute-api.us-east-1.amazonaws.com/dev
+    CURSOS_API_URL: https://r9ttk3it54.execute-api.us-east-1.amazonaws.com/dev
 
 plugins:
   - serverless-python-requirements
