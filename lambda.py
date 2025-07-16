@@ -102,10 +102,23 @@ def listar_compras(event, context):
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
-        response = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id),
-            FilterExpression=Attr('usuario_id').eq(usuario_id)
-        )
+        query_params = event.get('queryStringParameters', {}) or {}
+        limit = int(query_params.get('limit', 50))  # Límite por defecto
+        last_evaluated_key = query_params.get('last_key')
+
+        query_kwargs = {
+            'KeyConditionExpression': Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id),
+            'Limit': limit,
+            'ScanIndexForward': False
+        }
+
+        if last_evaluated_key:
+            try:
+                query_kwargs['ExclusiveStartKey'] = json.loads(last_evaluated_key)
+            except:
+                pass
+
+        response = table.query(**query_kwargs)
 
         compras = response.get('Items', [])
         compras_completas = []
@@ -127,9 +140,20 @@ def listar_compras(event, context):
 
             compras_completas.append(compra)
 
+        result = {
+            'compras': compras_completas,
+            'count': len(compras_completas)
+        }
+
+        if 'LastEvaluatedKey' in response:
+            result['last_key'] = json.dumps(response['LastEvaluatedKey'], default=str)
+            result['has_more'] = True
+        else:
+            result['has_more'] = False
+
         return {
             'statusCode': 200,
-            'body': json.dumps({'compras': compras_completas}, default=decimal_default)
+            'body': json.dumps(result, default=decimal_default)
         }
 
     except Exception as e:
