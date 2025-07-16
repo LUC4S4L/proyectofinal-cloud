@@ -1,23 +1,17 @@
 openapi: 3.0.1
 info:
-  title: API de Compras - Clases Virtuales
-  version: 1.1.0
-  description: >
-    Microservicio para registrar y listar compras de cursos virtuales por usuario (multi-tenant). 
-    Requiere autenticación JWT. Valida que los cursos existan y pertenezcan al tenant correcto.
+  title: API Compras
+  description: API para registrar y listar compras de cursos
+  version: 1.0.0
 
 servers:
-  - url: https://tu-api-compras.execute-api.us-east-1.amazonaws.com/dev
+  - url: https://<API_ID>.execute-api.us-east-1.amazonaws.com/dev
+    description: API Gateway desplegado
 
 paths:
   /compras/registrar:
     post:
-      summary: Registrar compra de curso
-      description: >
-        Registra una compra únicamente si el curso existe en la API de Cursos 
-        y pertenece al mismo tenant_id del usuario autenticado.
-      tags:
-        - Compras
+      summary: Registrar una nueva compra
       security:
         - bearerAuth: []
       requestBody:
@@ -26,12 +20,17 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - curso_id
+                - monto_pagado
               properties:
                 curso_id:
                   type: string
                   example: "0984aa2e-2c7d-4492-9775-eb546ddd089f"
-              required:
-                - curso_id
+                monto_pagado:
+                  type: number
+                  format: float
+                  example: 89.99
       responses:
         '201':
           description: Compra registrada exitosamente
@@ -42,39 +41,25 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Compra registrada exitosamente
                   compra_id:
                     type: string
         '400':
-          description: Datos faltantes o inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Error en los datos enviados
         '403':
-          description: Curso no válido para el tenant del usuario
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Curso no pertenece al tenant
+        '404':
+          description: Curso no encontrado
         '500':
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: Error interno
 
   /compras/listar:
     post:
-      summary: Listar compras de un usuario autenticado
-      description: Retorna todas las compras del usuario autenticado (basado en el token JWT).
-      tags:
-        - Compras
+      summary: Listar compras del usuario autenticado
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Lista de compras encontradas
+          description: Lista de compras realizadas
           content:
             application/json:
               schema:
@@ -95,18 +80,11 @@ paths:
                           type: number
                         fecha_compra:
                           type: string
-        '401':
-          description: Token inválido o expirado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                          format: date-time
+                        curso_detalle:
+                          type: object
         '500':
           description: Error interno
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
 components:
   securitySchemes:
@@ -114,11 +92,3 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-  schemas:
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          example: Mensaje de error
