@@ -21,24 +21,28 @@ def get_cors_headers():
     """Retorna los headers CORS necesarios"""
     return {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent',
-        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
-        'Access-Control-Allow-Credentials': 'false'
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+    }
+
+def create_response(status_code, body):
+    """Crea una respuesta estándar con headers CORS"""
+    return {
+        'statusCode': status_code,
+        'headers': get_cors_headers(),
+        'body': json.dumps(body, default=decimal_default) if isinstance(body, dict) else body
     }
 
 def registrar_compra(event, context):
+    if event.get('httpMethod') == 'OPTIONS':
+        return create_response(200, {'message': 'OK'})
+    
     try:
-        # Manejar preflight OPTIONS request
-        if event.get('httpMethod') == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'message': 'OK'})
-            }
+        token = event['headers'].get('Authorization') or event['headers'].get('authorization')
+        if not token:
+            return create_response(401, {'error': 'Token de autorización requerido'})
 
-        token = event['headers'].get('Authorization')
         payload = validar_token(token)
-
         body = json.loads(event['body'])
 
         tenant_id = payload['tenant_id']
@@ -46,50 +50,28 @@ def registrar_compra(event, context):
         curso_id = body.get('curso_id')
 
         if not curso_id:
-            return {
-                'statusCode': 400,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'curso_id es obligatorio'})
-            }
+            return create_response(400, {'error': 'curso_id es obligatorio'})
 
-        # Usar la función de cursos_utils
         curso_data = obtener_curso(curso_id, token)
         
         if not curso_data:
-            return {
-                'statusCode': 404,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Curso no encontrado en API Cursos'})
-            }
+            return create_response(404, {'error': 'Curso no encontrado en API Cursos'})
 
-        # Validar que el curso pertenece al tenant
         if not validar_curso_pertenece_tenant(curso_data, tenant_id):
-            return {
-                'statusCode': 403,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'Curso no pertenece al tenant'})
-            }
+            return create_response(403, {'error': 'Curso no pertenece al tenant'})
 
         nombre_curso = curso_data.get('curso_datos', {}).get('nombre', 'Curso sin nombre')
         monto_pagado = body.get('monto_pagado')
 
         if monto_pagado is None:
-            return {
-                'statusCode': 400,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': 'monto_pagado es obligatorio'})
-            }
+            return create_response(400, {'error': 'monto_pagado es obligatorio'})
 
         try:
             monto_pagado = Decimal(str(monto_pagado)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             if monto_pagado <= 0:
                 raise ValueError("El monto debe ser mayor a 0")
         except (InvalidOperation, TypeError, ValueError) as e:
-            return {
-                'statusCode': 400,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'error': f'Monto inválido: {str(e)}'})
-            }
+            return create_response(400, {'error': f'Monto inválido: {str(e)}'})
 
         compra_id = str(uuid.uuid4())
         fecha_compra = datetime.utcnow().isoformat()
@@ -106,41 +88,31 @@ def registrar_compra(event, context):
 
         table.put_item(Item=item)
 
-        return {
-            'statusCode': 201,
-            'headers': get_cors_headers(),
-            'body': json.dumps({
-                'message': 'Compra registrada exitosamente',
-                'compra_id': compra_id,
-                'fecha_compra': fecha_compra
-            })
-        }
+        return create_response(201, {
+            'message': 'Compra registrada exitosamente',
+            'compra_id': compra_id,
+            'fecha_compra': fecha_compra
+        })
 
     except Exception as e:
         print(f"Error en registrar_compra: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Error interno del servidor: {str(e)}'})
-        }
+        return create_response(500, {'error': f'Error interno del servidor: {str(e)}'})
 
 def listar_compras(event, context):
+    # Manejar preflight OPTIONS request
+    if event.get('httpMethod') == 'OPTIONS':
+        return create_response(200, {'message': 'OK'})
+    
     try:
-        # Manejar preflight OPTIONS request
-        if event.get('httpMethod') == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': get_cors_headers(),
-                'body': json.dumps({'message': 'OK'})
-            }
+        token = event['headers'].get('Authorization') or event['headers'].get('authorization')
+        if not token:
+            return create_response(401, {'error': 'Token de autorización requerido'})
 
-        token = event['headers'].get('Authorization')
         payload = validar_token(token)
 
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
-        # Consulta corregida usando ambas claves
         response = table.query(
             KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
         )
@@ -151,7 +123,6 @@ def listar_compras(event, context):
         for compra in compras:
             curso_id = compra.get('curso_id')
             
-            # Usar la función de cursos_utils para obtener detalles del curso
             curso_data = obtener_curso(curso_id, token)
             
             if curso_data:
@@ -161,22 +132,14 @@ def listar_compras(event, context):
 
             compras_completas.append(compra)
 
-        return {
-            'statusCode': 200,
-            'headers': get_cors_headers(),
-            'body': json.dumps({
-                'compras': compras_completas,
-                'total_compras': len(compras_completas)
-            }, default=decimal_default)
-        }
+        return create_response(200, {
+            'compras': compras_completas,
+            'total_compras': len(compras_completas)
+        })
 
     except Exception as e:
         print(f"Error en listar_compras: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': get_cors_headers(),
-            'body': json.dumps({'error': f'Error interno del servidor: {str(e)}'})
-        }
+        return create_response(500, {'error': f'Error interno del servidor: {str(e)}'})
 
 def procesar_cambios(event, context):
     """
@@ -192,14 +155,6 @@ def procesar_cambios(event, context):
             print(f"Nuevo valor: {json.dumps(nuevo, default=str)}")
             print(f"Valor anterior: {json.dumps(anterior, default=str)}")
             
-            # Aquí puedes agregar lógica adicional para procesar los cambios
-            # Por ejemplo: enviar notificaciones, actualizar caches, etc.
-            
     except Exception as e:
         print(f"Error procesando cambios DynamoDB: {str(e)}")
-        # No lanzar la excepción para evitar que el stream se bloquee
-        return
-    except Exception as e:
-        print(f"Error procesando cambios DynamoDB: {str(e)}")
-        # No lanzar la excepción para evitar que el stream se bloquee
         return
