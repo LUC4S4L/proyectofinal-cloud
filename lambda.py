@@ -129,19 +129,23 @@ def listar_compras(event, context):
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
-        response = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
+        # USAR SCAN EN LUGAR DE QUERY (temporal)
+        response = table.scan(
+            FilterExpression=Attr('tenant_id').eq(tenant_id) & Attr('usuario_id').eq(usuario_id)
         )
 
         compras = response.get('Items', [])
         print(f"Compras encontradas: {len(compras)}")
 
+        # Ordenar por fecha (más reciente primero)
+        compras_ordenadas = sorted(compras, key=lambda x: x.get('fecha_compra', ''), reverse=True)
+
         return {
             'statusCode': 200,
             'headers': cors_headers,
             'body': json.dumps({
-                'compras': compras,
-                'total_compras': len(compras)
+                'compras': compras_ordenadas,
+                'total_compras': len(compras_ordenadas)
             }, default=decimal_default)
         }
 
@@ -152,7 +156,7 @@ def listar_compras(event, context):
             'headers': cors_headers,
             'body': json.dumps({'error': f'Error interno: {str(e)}'})
         }
-
+        
 def procesar_cambios(event, context):
     try:
         for record in event['Records']:
