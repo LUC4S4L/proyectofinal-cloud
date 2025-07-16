@@ -64,3 +64,10 @@ package:
     - lambda.py
     - auth_utils.py
     - cursos_utils.py
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
