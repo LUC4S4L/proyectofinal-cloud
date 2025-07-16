@@ -8,17 +8,18 @@ from boto3.dynamodb.conditions import Key
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from auth_utils import validar_token
 
-dynamodb = boto3.resource('dynamodb')
+# DynamoDB
 TABLE_NAME = os.environ['TABLE_NAME']
-API_CURSOS_BASE_URL = os.environ['API_CURSOS_BASE_URL']
+dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(TABLE_NAME)
 
+# API Cursos
+CURSOS_API_URL = os.environ['CURSOS_API_URL']
 
 def decimal_default(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     raise TypeError
-
 
 def registrar_compra(event, context):
     try:
@@ -39,7 +40,7 @@ def registrar_compra(event, context):
 
         # Verificar curso en API Cursos
         response = requests.get(
-            f"{API_CURSOS_BASE_URL}/cursos/buscar/{curso_id}",
+            f"{CURSOS_API_URL}/cursos/buscar/{curso_id}",
             headers={'Authorization': token}
         )
 
@@ -50,18 +51,17 @@ def registrar_compra(event, context):
             }
 
         curso_data = response.json().get('curso')
-        if not curso_data or curso_data['tenant_id'] != tenant_id:
+        if not curso_data or curso_data.get('tenant_id') != tenant_id:
             return {
                 'statusCode': 403,
                 'body': json.dumps({'error': 'Curso no pertenece al tenant'})
             }
 
-        nombre_curso = curso_data['curso_datos'].get('nombre', 'Curso sin nombre')
+        nombre_curso = curso_data.get('curso_datos', {}).get('nombre', 'Curso sin nombre')
         monto_pagado = body.get('monto_pagado')
 
-        # Validar y convertir monto
         try:
-            monto_pagado = Decimal(monto_pagado).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            monto_pagado = Decimal(str(monto_pagado)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         except (InvalidOperation, TypeError):
             return {
                 'statusCode': 400,
@@ -97,7 +97,6 @@ def registrar_compra(event, context):
             'body': json.dumps({'error': str(e)})
         }
 
-
 def listar_compras(event, context):
     try:
         token = event['headers'].get('Authorization')
@@ -107,15 +106,32 @@ def listar_compras(event, context):
         usuario_id = payload['username']
 
         response = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id)
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
         )
-        compras = response.get('Items', [])
 
-        compras_usuario = [c for c in compras if c['usuario_id'] == usuario_id]
+        compras = response.get('Items', [])
+        compras_completas = []
+
+        for compra in compras:
+            curso_id = compra.get('curso_id')
+            try:
+                curso_response = requests.get(
+                    f"{CURSOS_API_URL}/cursos/buscar/{curso_id}",
+                    headers={'Authorization': token}
+                )
+                if curso_response.status_code == 200:
+                    curso_data = curso_response.json().get('curso', {})
+                    compra['curso_detalle'] = curso_data.get('curso_datos', {})
+                else:
+                    compra['curso_detalle'] = {'error': 'No se pudo obtener el detalle del curso'}
+            except Exception as e:
+                compra['curso_detalle'] = {'error': str(e)}
+
+            compras_completas.append(compra)
 
         return {
             'statusCode': 200,
-            'body': json.dumps({'compras': compras_usuario}, default=decimal_default)
+            'body': json.dumps({'compras': compras_completas}, default=decimal_default)
         }
 
     except Exception as e:
