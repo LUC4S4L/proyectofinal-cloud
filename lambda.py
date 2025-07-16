@@ -3,10 +3,9 @@ import boto3
 import uuid
 import os
 from datetime import datetime
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Key
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from auth_utils import validar_token
-from cursos_utils import obtener_curso, validar_curso_pertenece_tenant
 
 TABLE_NAME = os.environ['TABLE_NAME']
 dynamodb = boto3.resource('dynamodb')
@@ -17,30 +16,34 @@ def decimal_default(obj):
         return float(obj)
     raise TypeError
 
-def get_cors_headers():
-    """Retorna los headers CORS necesarios"""
-    return {
+def registrar_compra(event, context):
+    # Headers CORS para TODAS las respuestas
+    cors_headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
     }
-
-def create_response(status_code, body):
-    """Crea una respuesta estándar con headers CORS"""
-    return {
-        'statusCode': status_code,
-        'headers': get_cors_headers(),
-        'body': json.dumps(body, default=decimal_default) if isinstance(body, dict) else body
-    }
-
-def registrar_compra(event, context):
+    
+    # Manejar OPTIONS request
     if event.get('httpMethod') == 'OPTIONS':
-        return create_response(200, {'message': 'OK'})
+        return {
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({'message': 'OK'})
+        }
     
     try:
+        # Log para debugging
+        print(f"Headers recibidos: {event.get('headers', {})}")
+        print(f"Body recibido: {event.get('body', '')}")
+        
         token = event['headers'].get('Authorization') or event['headers'].get('authorization')
         if not token:
-            return create_response(401, {'error': 'Token de autorización requerido'})
+            return {
+                'statusCode': 401,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'Token de autorización requerido'})
+            }
 
         payload = validar_token(token)
         body = json.loads(event['body'])
@@ -48,33 +51,36 @@ def registrar_compra(event, context):
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
         curso_id = body.get('curso_id')
-
-        if not curso_id:
-            return create_response(400, {'error': 'curso_id es obligatorio'})
-
-        curso_data = obtener_curso(curso_id, token)
-        
-        if not curso_data:
-            return create_response(404, {'error': 'Curso no encontrado en API Cursos'})
-
-        if not validar_curso_pertenece_tenant(curso_data, tenant_id):
-            return create_response(403, {'error': 'Curso no pertenece al tenant'})
-
-        nombre_curso = curso_data.get('curso_datos', {}).get('nombre', 'Curso sin nombre')
         monto_pagado = body.get('monto_pagado')
 
+        if not curso_id:
+            return {
+                'statusCode': 400,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'curso_id es obligatorio'})
+            }
+
         if monto_pagado is None:
-            return create_response(400, {'error': 'monto_pagado es obligatorio'})
+            return {
+                'statusCode': 400,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'monto_pagado es obligatorio'})
+            }
 
         try:
             monto_pagado = Decimal(str(monto_pagado)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             if monto_pagado <= 0:
                 raise ValueError("El monto debe ser mayor a 0")
         except (InvalidOperation, TypeError, ValueError) as e:
-            return create_response(400, {'error': f'Monto inválido: {str(e)}'})
+            return {
+                'statusCode': 400,
+                'headers': cors_headers,
+                'body': json.dumps({'error': f'Monto inválido: {str(e)}'})
+            }
 
         compra_id = str(uuid.uuid4())
         fecha_compra = datetime.utcnow().isoformat()
+        nombre_curso = body.get('nombre_curso', 'Curso sin nombre')
 
         item = {
             'tenant_id': tenant_id,
@@ -87,29 +93,55 @@ def registrar_compra(event, context):
         }
 
         table.put_item(Item=item)
+        
+        print(f"Compra registrada exitosamente: {compra_id}")
 
-        return create_response(201, {
-            'message': 'Compra registrada exitosamente',
-            'compra_id': compra_id,
-            'fecha_compra': fecha_compra
-        })
+        return {
+            'statusCode': 201,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'message': 'Compra registrada exitosamente',
+                'compra_id': compra_id,
+                'fecha_compra': fecha_compra
+            })
+        }
 
     except Exception as e:
         print(f"Error en registrar_compra: {str(e)}")
-        return create_response(500, {'error': f'Error interno del servidor: {str(e)}'})
+        return {
+            'statusCode': 500,
+            'headers': cors_headers,
+            'body': json.dumps({'error': f'Error interno: {str(e)}'})
+        }
 
 def listar_compras(event, context):
-    # Manejar preflight OPTIONS request
+    # Headers CORS para TODAS las respuestas
+    cors_headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS'
+    }
+    
+    # Manejar OPTIONS request
     if event.get('httpMethod') == 'OPTIONS':
-        return create_response(200, {'message': 'OK'})
+        return {
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({'message': 'OK'})
+        }
     
     try:
+        print(f"Headers recibidos: {event.get('headers', {})}")
+        
         token = event['headers'].get('Authorization') or event['headers'].get('authorization')
         if not token:
-            return create_response(401, {'error': 'Token de autorización requerido'})
+            return {
+                'statusCode': 401,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'Token de autorización requerido'})
+            }
 
         payload = validar_token(token)
-
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
@@ -118,43 +150,30 @@ def listar_compras(event, context):
         )
 
         compras = response.get('Items', [])
-        compras_completas = []
+        print(f"Compras encontradas: {len(compras)}")
 
-        for compra in compras:
-            curso_id = compra.get('curso_id')
-            
-            curso_data = obtener_curso(curso_id, token)
-            
-            if curso_data:
-                compra['curso_detalle'] = curso_data.get('curso_datos', {})
-            else:
-                compra['curso_detalle'] = {'error': 'No se pudo obtener el detalle del curso'}
-
-            compras_completas.append(compra)
-
-        return create_response(200, {
-            'compras': compras_completas,
-            'total_compras': len(compras_completas)
-        })
+        return {
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'compras': compras,
+                'total_compras': len(compras)
+            }, default=decimal_default)
+        }
 
     except Exception as e:
         print(f"Error en listar_compras: {str(e)}")
-        return create_response(500, {'error': f'Error interno del servidor: {str(e)}'})
+        return {
+            'statusCode': 500,
+            'headers': cors_headers,
+            'body': json.dumps({'error': f'Error interno: {str(e)}'})
+        }
 
 def procesar_cambios(event, context):
-    """
-    Función para procesar cambios en el DynamoDB Stream
-    """
     try:
         for record in event['Records']:
             evento = record['eventName']
-            nuevo = record.get('dynamodb', {}).get('NewImage', {})
-            anterior = record.get('dynamodb', {}).get('OldImage', {})
-
-            print(f"Evento: {evento}")
-            print(f"Nuevo valor: {json.dumps(nuevo, default=str)}")
-            print(f"Valor anterior: {json.dumps(anterior, default=str)}")
-            
+            print(f"Evento DynamoDB: {evento}")
     except Exception as e:
-        print(f"Error procesando cambios DynamoDB: {str(e)}")
+        print(f"Error procesando cambios: {str(e)}")
         return
