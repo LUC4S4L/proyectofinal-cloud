@@ -199,3 +199,7 @@ def procesar_cambios(event, context):
         print(f"Error procesando cambios DynamoDB: {str(e)}")
         # No lanzar la excepción para evitar que el stream se bloquee
         return
+    except Exception as e:
+        print(f"Error procesando cambios DynamoDB: {str(e)}")
+        # No lanzar la excepción para evitar que el stream se bloquee
+        return
