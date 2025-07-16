@@ -19,8 +19,25 @@ def decimal_default(obj):
         return float(obj)
     raise TypeError
 
+def get_cors_headers():
+    """Retorna los headers CORS necesarios"""
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+        'Access-Control-Allow-Credentials': 'false'
+    }
+
 def registrar_compra(event, context):
     try:
+        # Manejar preflight OPTIONS request
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'message': 'OK'})
+            }
+
         token = event['headers'].get('Authorization')
         payload = validar_token(token)
 
@@ -33,6 +50,7 @@ def registrar_compra(event, context):
         if not curso_id:
             return {
                 'statusCode': 400,
+                'headers': get_cors_headers(),
                 'body': json.dumps({'error': 'curso_id es obligatorio'})
             }
 
@@ -44,6 +62,7 @@ def registrar_compra(event, context):
         if response.status_code != 200:
             return {
                 'statusCode': 404,
+                'headers': get_cors_headers(),
                 'body': json.dumps({'error': 'Curso no encontrado en API Cursos'})
             }
 
@@ -51,6 +70,7 @@ def registrar_compra(event, context):
         if not curso_data or curso_data.get('tenant_id') != tenant_id:
             return {
                 'statusCode': 403,
+                'headers': get_cors_headers(),
                 'body': json.dumps({'error': 'Curso no pertenece al tenant'})
             }
 
@@ -62,6 +82,7 @@ def registrar_compra(event, context):
         except (InvalidOperation, TypeError):
             return {
                 'statusCode': 400,
+                'headers': get_cors_headers(),
                 'body': json.dumps({'error': 'Monto inválido'})
             }
 
@@ -82,6 +103,7 @@ def registrar_compra(event, context):
 
         return {
             'statusCode': 201,
+            'headers': get_cors_headers(),
             'body': json.dumps({
                 'message': 'Compra registrada exitosamente',
                 'compra_id': compra_id
@@ -91,34 +113,28 @@ def registrar_compra(event, context):
     except Exception as e:
         return {
             'statusCode': 500,
+            'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
         }
 
 def listar_compras(event, context):
     try:
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'message': 'OK'})
+            }
+
         token = event['headers'].get('Authorization')
         payload = validar_token(token)
 
         tenant_id = payload['tenant_id']
         usuario_id = payload['username']
 
-        query_params = event.get('queryStringParameters', {}) or {}
-        limit = int(query_params.get('limit', 50))  # Límite por defecto
-        last_evaluated_key = query_params.get('last_key')
-
-        query_kwargs = {
-            'KeyConditionExpression': Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id),
-            'Limit': limit,
-            'ScanIndexForward': False
-        }
-
-        if last_evaluated_key:
-            try:
-                query_kwargs['ExclusiveStartKey'] = json.loads(last_evaluated_key)
-            except:
-                pass
-
-        response = table.query(**query_kwargs)
+        response = table.query(
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
+        )
 
         compras = response.get('Items', [])
         compras_completas = []
@@ -140,25 +156,16 @@ def listar_compras(event, context):
 
             compras_completas.append(compra)
 
-        result = {
-            'compras': compras_completas,
-            'count': len(compras_completas)
-        }
-
-        if 'LastEvaluatedKey' in response:
-            result['last_key'] = json.dumps(response['LastEvaluatedKey'], default=str)
-            result['has_more'] = True
-        else:
-            result['has_more'] = False
-
         return {
             'statusCode': 200,
-            'body': json.dumps(result, default=decimal_default)
+            'headers': get_cors_headers(),
+            'body': json.dumps({'compras': compras_completas}, default=decimal_default)
         }
 
     except Exception as e:
         return {
             'statusCode': 500,
+            'headers': get_cors_headers(),
             'body': json.dumps({'error': str(e)})
         }
 
