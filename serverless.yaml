@@ -21,10 +21,6 @@ functions:
           path: /compras/registrar
           method: post
           cors: true
-      - http:
-          path: /compras/registrar
-          method: options
-          cors: true
   
   listarCompras:
     handler: lambda.listar_compras
@@ -32,10 +28,6 @@ functions:
       - http:
           path: /compras/listar
           method: post
-          cors: true
-      - http:
-          path: /compras/listar
-          method: options
           cors: true
   
   procesarCambios:
