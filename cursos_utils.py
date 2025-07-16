@@ -1,7 +1,7 @@
 import os
 import requests
 
-CURSOS_API_URL = os.environ.get('CURSOS_API_URL', 'https://vojyv84ne9.execute-api.us-east-1.amazonaws.com/dev')
+CURSOS_API_URL = os.environ.get('CURSOS_API_URL', 'https://r9ttk3it54.execute-api.us-east-1.amazonaws.com/dev')
 
 def obtener_curso(curso_id, token):
     try:
