@@ -4,7 +4,7 @@ import uuid
 import os
 import requests
 from datetime import datetime
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from auth_utils import validar_token
 
@@ -103,7 +103,8 @@ def listar_compras(event, context):
         usuario_id = payload['username']
 
         response = table.query(
-            KeyConditionExpression=Key('tenant_id').eq(tenant_id) & Key('usuario_id').eq(usuario_id)
+            KeyConditionExpression=Key('tenant_id').eq(tenant_id),
+            FilterExpression=Attr('usuario_id').eq(usuario_id)
         )
 
         compras = response.get('Items', [])
