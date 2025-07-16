@@ -75,3 +75,5 @@ package:
     - lambda.py
     - auth_utils.py
     - cursos_utils.py
+    - jwt/**
+    - PyJWT-*/**
