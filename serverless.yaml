@@ -20,7 +20,12 @@ functions:
       - http:
           path: /compras/registrar
           method: post
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
   
   listarCompras:
     handler: lambda.listar_compras
@@ -28,7 +33,12 @@ functions:
       - http:
           path: /compras/listar
           method: post
-          cors: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: false
   
   procesarCambios:
     handler: lambda.procesar_cambios
