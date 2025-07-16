@@ -59,13 +59,25 @@ resources:
         AttributeDefinitions:
           - AttributeName: tenant_id
             AttributeType: S
+          - AttributeName: compra_id
+            AttributeType: S
           - AttributeName: usuario_id
             AttributeType: S
         KeySchema:
           - AttributeName: tenant_id
             KeyType: HASH
-          - AttributeName: usuario_id
+          - AttributeName: compra_id
             KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: UsuarioIndex
+            KeySchema:
+              - AttributeName: tenant_id
+                KeyType: HASH
+              - AttributeName: usuario_id
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            BillingMode: PAY_PER_REQUEST
         BillingMode: PAY_PER_REQUEST
         StreamSpecification:
           StreamViewType: NEW_AND_OLD_IMAGES
