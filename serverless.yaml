@@ -20,19 +20,7 @@ functions:
       - http:
           path: /compras/registrar
           method: post
-          cors:
-            origin: '*'
-            headers:
-              - Content-Type
-              - Authorization
-              - X-Amz-Date
-              - X-Api-Key
-              - X-Amz-Security-Token
-              - X-Amz-User-Agent
-            allowCredentials: false
-            methods:
-              - OPTIONS
-              - POST
+          cors: true
   
   listarCompras:
     handler: lambda.listar_compras
