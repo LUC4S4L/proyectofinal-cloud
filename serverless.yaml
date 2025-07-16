@@ -12,6 +12,13 @@ provider:
     TABLE_NAME: ${sls:stage}-t_compras
     CURSOS_API_URL: https://vojyv84ne9.execute-api.us-east-1.amazonaws.com/dev
 
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    
 functions:
   registrarCompra:
     handler: lambda.registrar_compra
@@ -64,10 +71,3 @@ package:
     - lambda.py
     - auth_utils.py
     - cursos_utils.py
-
-plugins:
-  - serverless-python-requirements
-
-custom:
-  pythonRequirements:
-    dockerizePip: true
