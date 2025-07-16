@@ -1,94 +1,341 @@
-openapi: 3.0.1
+openapi: 3.0.3
 info:
-  title: API Compras
-  description: API para registrar y listar compras de cursos
+  title: API Compras - EduCloud
+  description: |
+    API para gestionar compras de cursos en la plataforma EduCloud.
+    
+    Esta API permite a los usuarios registrar compras de cursos y listar su historial de compras.
+    Utiliza autenticación JWT y soporta multi-tenancy.
+    
+    ## Autenticación
+    Todas las operaciones requieren un token JWT válido en el header `Authorization` con el formato:
+    `Bearer <token>`
+    
+    ## Multi-tenancy
+    Cada usuario pertenece a un tenant específico. Las operaciones se filtran automáticamente
+    por el tenant_id extraído del token JWT.
+    
   version: 1.0.0
+  contact:
+    name: Equipo EduCloud
+    email: support@educloud.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://r9ttk3it54.execute-api.us-east-1.amazonaws.com/dev
-    description: API Gateway desplegado
+  - url: https://isyijuphfl.execute-api.us-east-1.amazonaws.com/prod
+    description: Servidor de Producción
+  - url: https://localhost:3000
+    description: Servidor de Desarrollo Local
+
+tags:
+  - name: compras
+    description: Operaciones relacionadas con compras de cursos
 
 paths:
   /compras/registrar:
     post:
-      summary: Registrar una nueva compra
+      tags:
+        - compras
+      summary: Registrar nueva compra
+      description: |
+        Registra una nueva compra de curso para el usuario autenticado.
+        
+        La compra se asocia automáticamente al tenant y usuario extraídos del token JWT.
+        Se genera un ID único para cada compra y se registra la fecha/hora actual.
+      operationId: registrarCompra
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - curso_id
-                - monto_pagado
-              properties:
-                curso_id:
-                  type: string
-                  example: "0984aa2e-2c7d-4492-9775-eb546ddd089f"
-                monto_pagado:
-                  type: number
-                  format: float
-                  example: 89.99
+              $ref: '#/components/schemas/RegistrarCompraRequest'
+            examples:
+              ejemplo_basico:
+                summary: Compra básica
+                value:
+                  curso_id: "curso-123-abc"
+                  nombre_curso: "Curso de React Avanzado"
+                  monto_pagado: 99.99
+              ejemplo_curso_caro:
+                summary: Curso premium
+                value:
+                  curso_id: "curso-456-def"
+                  nombre_curso: "Masterclass de AWS Solutions Architect"
+                  monto_pagado: 299.95
       responses:
         '201':
           description: Compra registrada exitosamente
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  compra_id:
-                    type: string
+                $ref: '#/components/schemas/RegistrarCompraResponse'
+              examples:
+                compra_exitosa:
+                  summary: Compra registrada
+                  value:
+                    message: "Compra registrada exitosamente"
+                    compra_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    fecha_compra: "2024-07-16T15:30:45.123Z"
         '400':
-          description: Error en los datos enviados
-        '403':
-          description: Curso no pertenece al tenant
-        '404':
-          description: Curso no encontrado
-        '500':
-          description: Error interno
-
-  /compras/listar:
-    post:
-      summary: Listar compras del usuario autenticado
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Lista de compras realizadas
+          description: Datos de entrada inválidos
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  compras:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        compra_id:
-                          type: string
-                        curso_id:
-                          type: string
-                        nombre_curso:
-                          type: string
-                        monto_pagado:
-                          type: number
-                        fecha_compra:
-                          type: string
-                          format: date-time
-                        curso_detalle:
-                          type: object
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                curso_id_faltante:
+                  summary: Falta curso_id
+                  value:
+                    error: "curso_id es obligatorio"
+                monto_invalido:
+                  summary: Monto inválido
+                  value:
+                    error: "Monto inválido: El monto debe ser mayor a 0"
+        '401':
+          description: Token de autenticación requerido o inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                sin_token:
+                  summary: Token faltante
+                  value:
+                    error: "Token de autorización requerido"
+                token_invalido:
+                  summary: Token inválido
+                  value:
+                    error: "Token inválido"
         '500':
-          description: Error interno
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Error interno: Conexión a base de datos falló"
+
+  /compras/listar:
+    post:
+      tags:
+        - compras
+      summary: Listar compras del usuario
+      description: |
+        Obtiene el historial completo de compras del usuario autenticado.
+        
+        Las compras se devuelven ordenadas por fecha de compra (más recientes primero).
+        Solo se muestran las compras del tenant al que pertenece el usuario.
+      operationId: listarCompras
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Cuerpo vacío requerido por el endpoint
+              example: {}
+      responses:
+        '200':
+          description: Lista de compras obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListarComprasResponse'
+              examples:
+                con_compras:
+                  summary: Usuario con compras
+                  value:
+                    compras:
+                      - compra_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                        tenant_id: "tenant-edu-001"
+                        usuario_id: "usuario123"
+                        curso_id: "curso-123-abc"
+                        nombre_curso: "Curso de React Avanzado"
+                        monto_pagado: 99.99
+                        fecha_compra: "2024-07-16T15:30:45.123Z"
+                      - compra_id: "b2c3d4e5-f6g7-8901-bcde-fg2345678901"
+                        tenant_id: "tenant-edu-001"
+                        usuario_id: "usuario123"
+                        curso_id: "curso-456-def"
+                        nombre_curso: "Curso de Python para Data Science"
+                        monto_pagado: 149.50
+                        fecha_compra: "2024-07-15T10:15:30.456Z"
+                    total_compras: 2
+                sin_compras:
+                  summary: Usuario sin compras
+                  value:
+                    compras: []
+                    total_compras: 0
+        '401':
+          description: Token de autenticación requerido o inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  schemas:
+    RegistrarCompraRequest:
+      type: object
+      required:
+        - curso_id
+        - monto_pagado
+      properties:
+        curso_id:
+          type: string
+          description: ID único del curso a comprar
+          example: "curso-123-abc"
+          minLength: 1
+        nombre_curso:
+          type: string
+          description: Nombre descriptivo del curso (opcional)
+          example: "Curso de React Avanzado"
+        monto_pagado:
+          type: number
+          format: decimal
+          description: Monto pagado por el curso en dólares
+          example: 99.99
+          minimum: 0.01
+          maximum: 9999.99
+
+    RegistrarCompraResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensaje de confirmación
+          example: "Compra registrada exitosamente"
+        compra_id:
+          type: string
+          format: uuid
+          description: ID único generado para la compra
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        fecha_compra:
+          type: string
+          format: date-time
+          description: Fecha y hora de la compra en formato ISO 8601
+          example: "2024-07-16T15:30:45.123Z"
+
+    ListarComprasResponse:
+      type: object
+      properties:
+        compras:
+          type: array
+          description: Lista de compras del usuario
+          items:
+            $ref: '#/components/schemas/Compra'
+        total_compras:
+          type: integer
+          description: Número total de compras
+          example: 2
+          minimum: 0
+
+    Compra:
+      type: object
+      properties:
+        compra_id:
+          type: string
+          format: uuid
+          description: ID único de la compra
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        tenant_id:
+          type: string
+          description: ID del tenant al que pertenece la compra
+          example: "tenant-edu-001"
+        usuario_id:
+          type: string
+          description: ID del usuario que realizó la compra
+          example: "usuario123"
+        curso_id:
+          type: string
+          description: ID del curso comprado
+          example: "curso-123-abc"
+        nombre_curso:
+          type: string
+          description: Nombre del curso comprado
+          example: "Curso de React Avanzado"
+        monto_pagado:
+          type: number
+          format: decimal
+          description: Monto pagado por el curso
+          example: 99.99
+        fecha_compra:
+          type: string
+          format: date-time
+          description: Fecha y hora de la compra
+          example: "2024-07-16T15:30:45.123Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción del error
+          example: "Token de autorización requerido"
+
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        Token JWT que contiene la información del usuario y tenant.
+        
+        El token debe incluir los siguientes claims:
+        - `tenant_id`: ID del tenant
+        - `username`: ID del usuario
+        - `exp`: Fecha de expiración
+        
+        Ejemplo: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+  responses:
+    UnauthorizedError:
+      description: Token de autenticación faltante o inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  examples:
+    TokenJWT:
+      summary: Ejemplo de token JWT
+      description: |
+        Token JWT típico usado en la API. Contiene información del usuario y tenant.
+      value: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ0ZW5hbnQtZWR1LTAwMSIsInVzZXJuYW1lIjoidXN1YXJpbzEyMyIsImV4cCI6MTcyMTEzNjAwMH0.xyz123abc"
+
+# Información adicional sobre CORS
+x-cors:
+  enabled: true
+  origins:
+    - "*"
+  methods:
+    - GET
+    - POST
+    - OPTIONS
+  headers:
+    - Content-Type
+    - Authorization
+
+# Información sobre rate limiting
+x-rate-limiting:
+  requests: 100
+  period: "1h"
+  scope: "user"
+
+# Información sobre monitoreo
+x-monitoring:
+  logs: true
+  metrics: true
+  tracing: false
