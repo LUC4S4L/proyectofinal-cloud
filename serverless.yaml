@@ -55,7 +55,7 @@ resources:
         AttributeDefinitions:
           - AttributeName: tenant_id
             AttributeType: S
-          - AttributeName: usuario_id
+          - AttributeName: compra_id
             AttributeType: S
         KeySchema:
           - AttributeName: tenant_id
